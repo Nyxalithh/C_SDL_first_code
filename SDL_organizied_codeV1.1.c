@@ -3,7 +3,7 @@ SDL_AppInit()
     ↓
 répétition :
     SDL_AppEvent()      // zéro, un ou plusieurs événements
-    SDL_AppIterate()    // une mise à jour / image
+    SDL_AppIterate()    // une mise à jour / image :)
     ↓
 SDL_AppQuit()
 */

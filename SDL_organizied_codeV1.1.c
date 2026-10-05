@@ -2,7 +2,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-
+//il faut regler la gravité.
 
 typedef struct 
 {
@@ -58,6 +58,7 @@ typedef struct
 
     int blocked_left;
     int blocked_right;
+    int onObject;
 
     bool isJumping;
     int state;  //0 = standing,  1 = walking,   
@@ -69,6 +70,7 @@ typedef struct
     SDL_Texture *texture;
     Hitbox hitbox;
     char* path;
+    bool onObject;
 }Objet;
 
 typedef struct 
@@ -98,7 +100,6 @@ typedef struct
 void keyHandle(SDL_Event *event, App *app);
 void Render(App *app);
 void Update (App *app, float deltaTime);
-void fixedUpdate(App *app, float deltaTime);
 
 float gestionTemp(App *app);
 void animation(App *app);
@@ -176,7 +177,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     //nyx init
     app->nyx.rect.x = 150;
-    app->nyx.rect.y = 135;
+    app->nyx.rect.y = 50;
     app->nyx.rect.w = 64;
     app->nyx.rect.h = 64;
     app->nyx.vitesseX = 100.0f;
@@ -196,6 +197,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     app->nyx.hitbox.ay = app->nyx.rect.y;
     app->nyx.hitbox.bx = app->nyx.rect.x + app->nyx.rect.w;        //cree la hitbox. 
     app->nyx.hitbox.by = app->nyx.rect.y + app->nyx.rect.h;
+
+    app->nyx.onObject = -1;
 
 
     
@@ -223,6 +226,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     app->allObjets[2].hitbox.bx = app->allObjets[2].rect.x + app->allObjets[2].rect.w;
     app->allObjets[2].hitbox.by = app->allObjets[2].rect.y + app->allObjets[2].rect.h;
     app->allObjets[2].path = "Asset\\objet1.bmp";
+    
 
 
 
@@ -418,7 +422,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     //appelle des fonction
     Render(app);
     Update (app, deltaTime);
-    //fixedUpdate(app, deltaTime);
 
     
     Uint64 FrameTime = SDL_GetTicks() - frameStart;     //bloque a 60FPS environ
@@ -520,23 +523,12 @@ void Render(App *app)
 
 }
 
-
-void fixedUpdate(App *app, float deltaTime)
-{
-    const bool *keys = SDL_GetKeyboardState(NULL);
-}
-
-
 void Update (App *app, float deltaTime)
 {
     hitboxRefrech(app);
 
     const bool *keys = SDL_GetKeyboardState(NULL);
-    for (int i = 0 ; i < app->nbrObjet ; i++)
-    {
-        checkCollisionX(app, i);
-        checkCollisionY(app, i);
-    }
+    
     
     if (keys[SDL_SCANCODE_D])
     {
@@ -569,15 +561,13 @@ void Update (App *app, float deltaTime)
     }
 
     app->nyx.rect.y += app->nyx.vitesseY * deltaTime;
-    SDL_Log("vitesseY: %f\nnyx y: %f",app->nyx.vitesseY, app->nyx.rect.y );
 
-    /*
-    if (app->nyx.hitbox.ay  < checkSolCoordonnee(app)  -  59)   //gestion du sol  (le 59 c'est les pixel en trop entre nyx et sa full texture)
+    for (int i = 0 ; i < app->nbrObjet ; i++)
     {
-        SDL_Log("sol by %d\n objet ay: %d", app->allObjets[0].hitbox.by, app->allObjets[2].hitbox.ay);
-        app->nyx.rect.y += app->nyx.vitesseY * deltaTime;
+        checkCollisionY(app, i);
+        hitboxRefrech(app);
+        checkCollisionX(app, i);
     }
-    */
 
 
     animation(app);
@@ -728,21 +718,20 @@ bool checkCollisionX(App *app, int i)
 bool checkCollisionY(App *app, int i)
 {
     if (    app->nyx.hitbox.bx > app->allObjets[i].hitbox.ax        &&      app->nyx.hitbox.ax < app->allObjets[i].hitbox.bx        &&      app->nyx.hitbox.by > app->allObjets[i].hitbox.ay        &&       app->nyx.hitbox.ay < app->allObjets[i].hitbox.by   ) //si le coté droit de nyx est devant le cote gauche de objet et coté droit nyx derrier cote gauche
-    {
+    {  
         if (app->nyx.vitesseY > 0)
         {
             app->nyx.vitesseY = 0;
-            app->nyx.rect.y = app->allObjets[i].hitbox.ay   - app->nyx.rect.h      +    11; 
+            app->nyx.rect.y = app->allObjets[i].hitbox.ay   - app->nyx.rect.h      +    10; 
             app->nyx.isJumping = false;
         }
-    }else{
-        if(!app->nyx.isJumping)
+        if (app->nyx.vitesseY < 0)
         {
-            app->nyx.vitesseY += 10.0f;
+            app->nyx.vitesseY = 0;
+            app->nyx.rect.y = app->allObjets[i].hitbox.by      +    18; 
         }
         
     }
-
 }
 
 
@@ -754,7 +743,7 @@ bool checkCollisionY(App *app, int i)
 void hitboxRefrech(App *app)
 {
     app->nyx.hitbox.ax = app->nyx.rect.x + 20;
-    app->nyx.hitbox.ay = app->nyx.rect.y;
+    app->nyx.hitbox.ay = app->nyx.rect.y + 18;
     app->nyx.hitbox.bx = app->nyx.rect.x + app->nyx.rect.w - 20;         
     app->nyx.hitbox.by = app->nyx.rect.y + app->nyx.rect.h  - 10;
 
@@ -771,7 +760,7 @@ void hitboxRefrech(App *app)
 
 void saut(App *app)
 {
-    SDL_Log("saut!");  
+    
     if (!app->nyx.isJumping)
     {                               //juste avant d'etre en etat de saut..
         app->nyx.rect.y-=10;
